@@ -1,3 +1,6 @@
+# Supabase / runtime secrets (keep env/supabase.example.json tracked)
+/env/supabase.json
+
 # Miscellaneous
 *.class
 *.log

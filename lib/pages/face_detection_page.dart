@@ -24,7 +24,7 @@ class _FaceDetectionPageState extends State<FaceDetectionPage> {
   final GlobalKey _repaintBoundaryKey = GlobalKey();
   bool isUploading = false;
 
-  Future<void> uploadImage(BuildContext context) async {
+  Future<void> uploadImage() async {
     setState(() {
       isUploading = true;
     });
@@ -53,19 +53,23 @@ class _FaceDetectionPageState extends State<FaceDetectionPage> {
       final path = "uploads/$filename";
       await Supabase.instance.client.storage.from('images').upload(path, file);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text("Image uploaded successfully"),
         duration: Duration(seconds: 2),
       ));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text("Failed to upload image"),
         duration: Duration(seconds: 2),
       ));
     } finally {
-      setState(() {
-        isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isUploading = false;
+        });
+      }
     }
   }
 
@@ -103,7 +107,7 @@ class _FaceDetectionPageState extends State<FaceDetectionPage> {
       await Share.shareXFiles([XFile(file.path)],
           text: 'Check out this face-detected image!');
     } catch (e) {
-      print("Error sharing file: $e");
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text("Failed to share the file"),
         duration: Duration(seconds: 2),
@@ -147,7 +151,7 @@ class _FaceDetectionPageState extends State<FaceDetectionPage> {
           FloatingActionButton(
             heroTag: "upload",
             backgroundColor: Colors.purple[900],
-            onPressed: () => uploadImage(context),
+            onPressed: uploadImage,
             child: isUploading
                 ? const SizedBox(
                     width: 24.0,

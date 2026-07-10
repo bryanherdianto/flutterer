@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'forgot_pass_page.dart';
 
 class MePage extends StatelessWidget {
   const MePage({super.key});
@@ -63,7 +64,12 @@ class MePage extends StatelessWidget {
                     leading: const Icon(Icons.password),
                     title: const Text('Reset password'),
                     onTap: () {
-                      // Navigate to reset password page
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ForgotPassPage(),
+                        ),
+                      );
                     },
                   ),
                 ),

@@ -15,6 +15,7 @@ class FilesPage extends StatefulWidget {
 class _FilesPageState extends State<FilesPage> {
   final SupabaseClient _supabaseClient = Supabase.instance.client;
   List<FileObject> objects = [];
+  bool _loading = true;
 
   @override
   void initState() {
@@ -24,16 +25,50 @@ class _FilesPageState extends State<FilesPage> {
 
   Future<void> getFiles() async {
     try {
-      objects = await _supabaseClient.storage.from('images').list(path: 'uploads');
-      setState(() {});
+      final result =
+          await _supabaseClient.storage.from('images').list(path: 'uploads');
+      if (!mounted) return;
+      setState(() {
+        objects = result;
+        _loading = false;
+      });
     } catch (e) {
-      print("Error fetching files: $e");
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Could not load files. Pull down to retry."),
+        duration: Duration(seconds: 2),
+      ));
+    }
+  }
+
+  Future<void> _confirmDelete(String fileName) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete file?"),
+        content: Text("\"$fileName\" will be permanently deleted."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete == true) {
+      deleteFile(fileName);
     }
   }
 
   Future<void> deleteFile(String fileName) async {
     try {
       await _supabaseClient.storage.from('images').remove(['uploads/$fileName']);
+      if (!mounted) return;
       setState(() {
         objects.removeWhere((file) => file.name == fileName);
       });
@@ -42,7 +77,11 @@ class _FilesPageState extends State<FilesPage> {
         duration: Duration(seconds: 2),
       ));
     } catch (e) {
-      print("Error deleting file: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Failed to delete the file"),
+        duration: Duration(seconds: 2),
+      ));
     }
   }
 
@@ -57,7 +96,7 @@ class _FilesPageState extends State<FilesPage> {
               title: const Text('Delete'),
               onTap: () {
                 Navigator.pop(context);
-                deleteFile(fileName);
+                _confirmDelete(fileName);
               },
             ),
             ListTile(
@@ -89,13 +128,14 @@ class _FilesPageState extends State<FilesPage> {
 
         await Share.shareXFiles([XFile(file.path)], text: 'Check out this file!');
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Failed to download the file for sharing"),
           duration: Duration(seconds: 2),
         ));
       }
     } catch (e) {
-      print("Error sharing file: $e");
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text("Failed to share the file"),
         duration: Duration(seconds: 2),
@@ -105,10 +145,41 @@ class _FilesPageState extends State<FilesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      child: objects.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : GridView.builder(
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (objects.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: getFiles,
+        child: ListView(
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.7,
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.photo_library_outlined,
+                        size: 64, color: Colors.grey),
+                    SizedBox(height: 12),
+                    Text("No files yet",
+                        style: TextStyle(fontSize: 18, color: Colors.grey)),
+                    SizedBox(height: 4),
+                    Text("Uploaded images will appear here.",
+                        style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: getFiles,
+      child: GridView.builder(
               padding: const EdgeInsets.all(8.0),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,

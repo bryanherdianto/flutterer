@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyApWbSYhUyRFyMbAEOWN2t3Y8hAJMU6Qp8',
-    appId: '1:803750883732:android:a18f074fa824de8fe31f81',
+    appId: '1:803750883732:android:5d904efb853bbfb1e31f81',
     messagingSenderId: '803750883732',
     projectId: 'auth-flutterer',
     storageBucket: 'auth-flutterer.firebasestorage.app',

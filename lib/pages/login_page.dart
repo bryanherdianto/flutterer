@@ -5,6 +5,7 @@ import 'package:flutterer_app/components/my_textfield.dart';
 import 'package:flutterer_app/components/square_tile.dart';
 import 'package:flutterer_app/pages/forgot_pass_page.dart';
 import 'package:flutterer_app/services/auth_service.dart';
+import 'package:flutterer_app/services/auth_error.dart';
 
 class LoginPage extends StatefulWidget {
   final Function()? onPressed;
@@ -20,9 +21,28 @@ class _LoginPageState extends State<LoginPage> {
 
   final passController = TextEditingController();
 
+  @override
+  void dispose() {
+    userController.dispose();
+    passController.dispose();
+    super.dispose();
+  }
+
   void signUserIn() async {
+    if (userController.text.trim().isEmpty || passController.text.isEmpty) {
+      showErrorMessage("Please enter your email and password.");
+      return;
+    }
+
+    // Capture the navigator up front. A successful sign-in fires
+    // authStateChanges, which unmounts this page before the await returns,
+    // so `mounted` would be false and a context-based pop would be skipped —
+    // leaving the loading dialog stranded on screen forever.
+    final navigator = Navigator.of(context, rootNavigator: true);
+
     showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (context) {
           return const Center(
             child: CircularProgressIndicator(),
@@ -31,25 +51,29 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: userController.text,
+        email: userController.text.trim(),
         password: passController.text,
       );
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      navigator.pop();
     } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-      }
-      if (e.code == 'user-not-found') {
-        showErrorMessage("No user found for that email.");
-      } else if (e.code == 'wrong-password') {
-        showErrorMessage("Wrong password provided for that user.");
-      }
+      navigator.pop();
+      showErrorMessage(authErrorMessage(e.code));
+    } catch (e) {
+      navigator.pop();
+      showErrorMessage("Something went wrong. Please try again.");
+    }
+  }
+
+  void signInWithGoogle() async {
+    try {
+      await AuthService().signInWithGoogle();
+    } catch (e) {
+      showErrorMessage("Google sign-in failed. Please try again.");
     }
   }
 
   void showErrorMessage(String message) {
+    if (!mounted) return;
     showDialog(
         context: context,
         builder: (context) {
@@ -104,8 +128,9 @@ class _LoginPageState extends State<LoginPage> {
 
                   MyTextField(
                       controller: userController,
-                      hintText: "Username",
-                      prefixIcon: Icons.person,
+                      hintText: "Email",
+                      prefixIcon: Icons.email,
+                      keyboardType: TextInputType.emailAddress,
                       obscureText: false),
 
                   const SizedBox(height: 20),
@@ -176,7 +201,7 @@ class _LoginPageState extends State<LoginPage> {
                   SquareTile(
                       imagePath: "lib/images/icons8-google-144.png",
                       tileText: "Sign In with Google",
-                      onTap: () => AuthService().signInWithGoogle()),
+                      onTap: signInWithGoogle),
 
                   const SizedBox(height: 20),
                   Row(

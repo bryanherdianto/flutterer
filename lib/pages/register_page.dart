@@ -4,6 +4,7 @@ import 'package:flutterer_app/components/my_button.dart';
 import 'package:flutterer_app/components/my_textfield.dart';
 import 'package:flutterer_app/components/square_tile.dart';
 import 'package:flutterer_app/services/auth_service.dart';
+import 'package:flutterer_app/services/auth_error.dart';
 
 class RegisterPage extends StatefulWidget {
   final Function()? onPressed;
@@ -19,9 +20,38 @@ class _RegisterPageState extends State<RegisterPage> {
   final passController = TextEditingController();
   final confirmPassController = TextEditingController();
 
+  @override
+  void dispose() {
+    userController.dispose();
+    passController.dispose();
+    confirmPassController.dispose();
+    super.dispose();
+  }
+
   void signUserUp() async {
+    if (userController.text.trim().isEmpty ||
+        passController.text.isEmpty ||
+        confirmPassController.text.isEmpty) {
+      showErrorMessage("Please fill in all fields.");
+      return;
+    }
+    if (passController.text != confirmPassController.text) {
+      showErrorMessage("Passwords do not match.");
+      return;
+    }
+    if (passController.text.length < 6) {
+      showErrorMessage("Password must be at least 6 characters.");
+      return;
+    }
+
+    // See login_page: a successful sign-up fires authStateChanges and
+    // unmounts this page before the await returns, so we pop via a captured
+    // navigator rather than a (by-then-false) `mounted` check.
+    final navigator = Navigator.of(context, rootNavigator: true);
+
     showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (context) {
           return const Center(
             child: CircularProgressIndicator(),
@@ -29,34 +59,30 @@ class _RegisterPageState extends State<RegisterPage> {
         });
 
     try {
-      if (confirmPassController.text == passController.text) {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: userController.text,
-          password: passController.text,
-        );
-      } else {
-        if (mounted) {
-          Navigator.pop(context);
-        }
-        showErrorMessage("Passwords do not match.");
-        return;
-      }
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: userController.text.trim(),
+        password: passController.text,
+      );
+      navigator.pop();
     } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-      }
-      if (e.code == 'user-not-found') {
-        showErrorMessage("No user found for that email.");
-      } else if (e.code == 'wrong-password') {
-        showErrorMessage("Wrong password provided for that user.");
-      }
+      navigator.pop();
+      showErrorMessage(authErrorMessage(e.code));
+    } catch (e) {
+      navigator.pop();
+      showErrorMessage("Something went wrong. Please try again.");
+    }
+  }
+
+  void signUpWithGoogle() async {
+    try {
+      await AuthService().signInWithGoogle();
+    } catch (e) {
+      showErrorMessage("Google sign-in failed. Please try again.");
     }
   }
 
   void showErrorMessage(String message) {
+    if (!mounted) return;
     showDialog(
         context: context,
         builder: (context) {
@@ -111,8 +137,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
                   MyTextField(
                       controller: userController,
-                      hintText: "Username",
-                      prefixIcon: Icons.person,
+                      hintText: "Email",
+                      prefixIcon: Icons.email,
+                      keyboardType: TextInputType.emailAddress,
                       obscureText: false),
 
                   const SizedBox(height: 20),
@@ -166,7 +193,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   SquareTile(
                       imagePath: "lib/images/icons8-google-144.png",
                       tileText: "Sign Up with Google",
-                      onTap: () => AuthService().signInWithGoogle()),
+                      onTap: signUpWithGoogle),
 
                   const SizedBox(height: 20),
                   Row(

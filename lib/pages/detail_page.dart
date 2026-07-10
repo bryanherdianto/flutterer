@@ -25,13 +25,15 @@ class _DetailPageState extends State<DetailPage> {
   Future getImageFromGallery() async {
     var tempStore = await ImagePicker().pickImage(source: ImageSource.gallery);
 
-    if (tempStore != null) {
-      imageFile = await tempStore.readAsBytes();
-    }
+    // User cancelled the picker — nothing to load.
+    if (tempStore == null) return;
+
+    imageFile = await tempStore.readAsBytes();
     imageFile = await decodeImageFromList(imageFile);
 
     setState(() {
-      pickedImage = File(tempStore!.path);
+      pickedImage = File(tempStore.path);
+      resultText = "";
       isImageLoaded = true;
     });
   }
@@ -89,7 +91,6 @@ class _DetailPageState extends State<DetailPage> {
   }
 
   Future detectFaces() async {
-    print(pickedImage);
     final inputImage = InputImage.fromFile(pickedImage);
     final faceDetector = GoogleMlKit.vision.faceDetector();
     final faces = await faceDetector.processImage(inputImage);
@@ -102,6 +103,7 @@ class _DetailPageState extends State<DetailPage> {
       rect.add(face.boundingBox);
     }
 
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -133,6 +135,13 @@ class _DetailPageState extends State<DetailPage> {
   }
 
   void detectMLModel() {
+    if (!isImageLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Please select an image first."),
+        duration: Duration(seconds: 2),
+      ));
+      return;
+    }
     if (selectedTool == "Text Scanner") {
       readTextFromImage();
     } else if (selectedTool == "Barcode Scanner") {

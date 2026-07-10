@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutterer_app/components/my_button.dart';
 import 'package:flutterer_app/components/my_textfield.dart';
+import 'package:flutterer_app/services/auth_error.dart';
 
 class ForgotPassPage extends StatefulWidget {
   const ForgotPassPage({
@@ -22,23 +23,42 @@ class _ForgotPassPageState extends State<ForgotPassPage> {
   }
 
   void passwordReset() async {
+    final email = resetEmailController.text.trim();
+    if (email.isEmpty) {
+      showMessage("Error", "Please enter your email address.");
+      return;
+    }
+
     try {
-      await FirebaseAuth.instance
-          .sendPasswordResetEmail(email: resetEmailController.text.trim());
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
+      // Neutral wording so we never reveal whether the email is registered.
+      showMessage(
+        "Check your email",
+        "If an account exists for $email, a password reset link has been sent.",
+      );
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      // Treat "no such user" like success to avoid leaking account existence.
       if (e.code == "user-not-found") {
-        showErrorMessage("No user found for that email.");
+        showMessage(
+          "Check your email",
+          "If an account exists for $email, a password reset link has been sent.",
+        );
+      } else {
+        showMessage("Error", authErrorMessage(e.code));
       }
     }
   }
 
-  void showErrorMessage(String message) {
+  void showMessage(String title, String message) {
+    if (!mounted) return;
     showDialog(
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: const Text("Error",
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(title,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             content: Text(
               message,
               style: const TextStyle(fontSize: 18),

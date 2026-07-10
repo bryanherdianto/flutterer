@@ -4,14 +4,21 @@ import 'pages/auth_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
+const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const _supabaseKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (_supabaseUrl.isEmpty || _supabaseKey.isEmpty) {
+    throw StateError(
+      'Missing Supabase credentials. Run with '
+      '--dart-define-from-file=env/supabase.json',
+    );
+  }
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  await Supabase.initialize(
-      url: 'https://ruagxvzszfixbrbnijmj.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1YWd4dnpzemZpeGJyYm5pam1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgwMzIxMzcsImV4cCI6MjA1MzYwODEzN30.CvKVmDx0vlAs2QWLD25LidhyaMtZX92uBIgO7YJKi3I');
+  await Supabase.initialize(url: _supabaseUrl, publishableKey: _supabaseKey);
   runApp(const MainApp());
 }
 
